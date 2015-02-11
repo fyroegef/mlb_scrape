@@ -1,11 +1,12 @@
-from datetime import datetime,timedelta
+from datetime import datetime
 import urllib2
-import re
 import xml.etree.ElementTree as et
 import numpy as np
 
 class gameScraper(object):
 	def __init__(self,custom_date=False,fetch=True):
+		## To lookup a historical date, use custom date = (YYYY,MM,DD)
+		## If to save time you want to manually lookup individual games, use fetch=False
 		if custom_date:
 			self.year,self.month,self.day = custom_date
 		else:
@@ -18,6 +19,7 @@ class gameScraper(object):
 				self.game_datas.append(self._getXML(game_id))
 
 	def _getSchedule(self):
+		## Semi-private method to lookup games on a particular day
 		self.path = 'http://gd2.mlb.com/components/game/mlb/year_' + self.year + '/month_' + self.month + '/day_' + self.day + '/'
 		req = urllib2.Request(self.path)
 		schedule_page = urllib2.urlopen(req).read()
@@ -27,6 +29,7 @@ class gameScraper(object):
 		return game_ids
 
 	def _getXML(self,game_id):
+		## Semi-private method to lookup a game's xml and convert it into a list/dictionary structure that is default to ElementTree
 		game_path = self.path + 'gid_' + game_id + '/inning/inning_all.xml'
 		print game_path
 		req = urllib2.Request(game_path)
@@ -35,6 +38,8 @@ class gameScraper(object):
 		return game_data
 
 	def pitchFX(self,game_data,game_id):
+		## Converts the ElementTree default structure into a list of all pitchF/X info for the whole game
+		## all units are converted to MKS
 		home_id = game_id.split('_')[-2][:3]
 		away_id = game_id.split('_')[-3][:3]
 		timestamp = ''.join(game_id.split('_')[:3])
@@ -50,6 +55,7 @@ class gameScraper(object):
 								pitch_temp = {}
 								pitch_temp['batter_id'] = item.attrib['batter']
 								pitch_temp['pitcher_id'] = item.attrib['pitcher']
+								pitch_temp['timestamp'] = timestamp
 								pitch_temp['home_id'] = home_id
 								pitch_temp['away_id'] = away_id
 								pitch_temp['inning_num'] = i+1
@@ -65,7 +71,7 @@ class gameScraper(object):
 								pitch_temp['pos_f'] = (float(subitem.attrib['px'])*0.3048,0,float(subitem.attrib['pz'])*0.3048)
 								pitch_temp['ddt'] = (float(subitem.attrib['pfx_x'])*0.0254,0,float(subitem.attrib['pfx_z'])*0.0254)
 								pitch_temp['y_mxbr'] = float(subitem.attrib['break_y'])*0.3048
-								pitch_temp['br_ang'] = float(subitem.attrib['break_angle'])
+								pitch_temp['br_ang'] = float(subitem.attrib['break_angle'])*np.pi/180
 								pitch_temp['br_len'] = float(subitem.attrib['break_length'])*0.0254
 
 								fx_data.append(pitch_temp)
@@ -73,6 +79,9 @@ class gameScraper(object):
 
 
 	def baseData(self,game_data,game_id):
+		## Converts the ElementTree default structure into 'base data'.
+		## each element has an initial and final state in terms of: base occupancy, outs, runs for each team
+		## this state-space is intended for simple Markov models, like RE24 or related
 		base_dict = {'':0,'1B':1,'2B':2,'3B':4}
 		home_id = game_id.split('_')[-2][:3]
 		away_id = game_id.split('_')[-3][:3]
