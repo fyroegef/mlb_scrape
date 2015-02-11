@@ -34,6 +34,44 @@ class gameScraper(object):
 		game_data = et.fromstring(pbp_xml)
 		return game_data
 
+	def pitchFX(self,game_data,game_id):
+		home_id = game_id.split('_')[-2][:3]
+		away_id = game_id.split('_')[-3][:3]
+		timestamp = ''.join(game_id.split('_')[:3])
+
+		fx_data = []
+		for i,inning in enumerate(game_data):
+			for half_inning in inning:
+				for item in half_inning:
+					if item.tag == 'atbat':
+						for subitem in item:
+							if subitem.tag == 'pitch':
+
+								pitch_temp = {}
+								pitch_temp['batter_id'] = item.attrib['batter']
+								pitch_temp['pitcher_id'] = item.attrib['pitcher']
+								pitch_temp['home_id'] = home_id
+								pitch_temp['away_id'] = away_id
+								pitch_temp['inning_num'] = i+1
+								if subitem.attrib['type'] == 'X':
+									pitch_temp['result'] = item.attrib['event']
+								else:
+									pitch_temp['result'] = None
+								pitch_temp['call'] = subitem.attrib['type']
+
+								pitch_temp['spd'] = float(subitem.attrib['start_speed']) * 0.447
+								pitch_temp['sz'] = (float(subitem.attrib['sz_bot'])*0.3048,float(subitem.attrib['sz_top'])*0.3048)
+								pitch_temp['pos_i'] = (float(subitem.attrib['x0'])*0.3048,float(subitem.attrib['y0'])*0.3048,float(subitem.attrib['z0'])*0.3048)
+								pitch_temp['pos_f'] = (float(subitem.attrib['px'])*0.3048,0,float(subitem.attrib['pz'])*0.3048)
+								pitch_temp['ddt'] = (float(subitem.attrib['pfx_x'])*0.0254,0,float(subitem.attrib['pfx_z'])*0.0254)
+								pitch_temp['y_mxbr'] = float(subitem.attrib['break_y'])*0.3048
+								pitch_temp['br_ang'] = float(subitem.attrib['break_angle'])
+								pitch_temp['br_len'] = float(subitem.attrib['break_length'])*0.0254
+
+								fx_data.append(pitch_temp)
+		return fx_data
+
+
 	def baseData(self,game_data,game_id):
 		base_dict = {'':0,'1B':1,'2B':2,'3B':4}
 		home_id = game_id.split('_')[-2][:3]
